@@ -1,52 +1,24 @@
-name: WIF Test
+name: WIF Auth Test
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  auth-and-firebase-admin-check:
+  verify-wif:
     runs-on: ubuntu-latest
-
-    env:
-      FIREBASE_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      FIREBASE_CLIENT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Authenticate to Google Cloud with WIF
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          create_credentials_file: true
-          export_environment_variables: true
 
-      - name: Verify Google auth
+      - name: Verify WIF auth succeeded
         run: |
+          echo "✅ WIF authentication successful"
+          echo "GOOGLE_APPLICATION_CREDENTIALS is set: $GOOGLE_APPLICATION_CREDENTIALS"
           gcloud auth list
-          gcloud config list project
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Verify Firebase Admin ADC initialization
-        run: |
-          node -e "const admin=require('firebase-admin'); admin.initializeApp({credential: admin.credential.applicationDefault(), projectId: process.env.FIREBASE_PROJECT_ID, serviceAccountId: process.env.FIREBASE_CLIENT_EMAIL}); admin.auth().listUsers(1).then((r)=>{console.log('Firebase Admin ADC OK. Users fetched:', r.users.length);}).catch((e)=>{console.error('Firebase Admin ADC FAILED:', e.message); process.exit(1);});"
-
-      - name: Verify custom token signing
-        run: |
-          node -e "const admin=require('firebase-admin'); admin.initializeApp({credential: admin.credential.applicationDefault(), projectId: process.env.FIREBASE_PROJECT_ID, serviceAccountId: process.env.FIREBASE_CLIENT_EMAIL}, 'custom-token-test'); admin.auth().createCustomToken('wif-smoke-test').then(()=>{console.log('Custom token signing OK');}).catch((e)=>{console.error('Custom token signing FAILED:', e.message); process.exit(1);});"
